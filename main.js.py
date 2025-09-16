@@ -22,7 +22,9 @@
 import tkinter as tk
 from tkinter import scrolledtext
 import datetime
+# 代替数据库
 import json
+# 加密
 import hashlib
 import os
 import binascii
@@ -92,7 +94,7 @@ class LoginApp:
                 self.users[self.encryptID('makit')]= self.encrypt('7890')
                 json.dump(self.users,f)
         # 通过hash来对用户的信息进行加密操作
-        # 用户名用一种算法来进行保密，如A写成O，例如凯撒加密法
+        # 用户名用一种算法来进行保密，如A写成O，可以用凯撒加密法
         # 密码用hash加密方式
         # 암호화不是为了永久加密，而且为了开发者自己使用也没法永久加密，即使是开发者也需要定时换一个保密法来保护数据，如SHA256hash
         # 但在Python中不能直接使用hashlib.sha256(password.encode()).hexdigest()，可以用Python内置的hashlib中的 pbkdf2_hmac
@@ -216,15 +218,15 @@ class ChatApp:
         self.username=username
 
         # 联系人列表框架
-        contacts_frame = tk.Frame(root, bg='#F5F5F5')
-        contacts_frame.place(x=0, y=0, width=200, height=600)
+        self.contacts_frame = tk.Frame(root, bg='#F5F5F5')
+        self.contacts_frame.place(x=0, y=0, width=200, height=600)
 
         # 搜索框
-        search_box = tk.Label(contacts_frame)
+        search_box = tk.Label(self.contacts_frame)
         search_box['text'] = '搜索联系人...'
         search_box['bg'] = 'white'
         search_box['fg'] = 'gray'
-        search_box.place(x=10, y=10, width=180, height=30)
+        search_box.place(x=10, y=10, width=170, height=30)
 
         # 存储聊天记录
         try:
@@ -256,7 +258,7 @@ class ChatApp:
         # 遍历联系人
         for i, contact in enumerate(contacts):
             # 设置联系人框的样式
-            btn = tk.Label(contacts_frame)
+            btn = tk.Label(self.contacts_frame)
             btn['text'] = contact
             btn['bg'] = 'white'
             btn['fg'] = 'black'
@@ -325,6 +327,14 @@ class ChatApp:
 
         # 设置初始选中状态，默认选择contacts列表中的第一个
         self.select_contact(contacts[0])
+
+        # 添加联系人的+
+        add_contacts = tk.Label(self.contacts_frame)
+        add_contacts['text'] = 'New Chat'
+        add_contacts['bg'] = 'aqua'
+        add_contacts['fg'] = 'white'
+        add_contacts.place(x=30, y=540, width=140, height=40)
+        add_contacts.bind('<Button-1>', self.addContacts)
 
     # 加载聊天记录
     def load_chat_history(self):
@@ -443,6 +453,35 @@ class ChatApp:
         # with open('chatHistory.json','w') as f:
         with open(f"{self.username}_chatHistory.json", 'w') as f:
             json.dump(self.chat_history,f,indent=4)
+
+    # 点击加号，添加新的联系人
+    def addContacts(self,event=None):
+        # 若该联系人已是好友，则提示他已经是你的好友了，请你们开始聊天吧
+        # if newContact in self.contacts:
+        #     self.show_message('他已经是你的好友了，请你们开始聊天吧')
+        # # 新联系人不能是自己
+        # if newContact==self.username:
+        #     self.show_message('新的联系人不可以是本人')
+        # # 直接添加？
+        # self.contacts.append(newContact)
+
+        # 设置联系人框的样式
+        btn = tk.Label(self.contacts_frame)
+        btn['text'] = 'chat'+str(len(self.contact_buttons)+1)
+        btn['bg'] = 'white'
+        btn['fg'] = 'black'
+        btn['anchor'] = 'w'
+        btn.place(x=10, y=50 + len(self.contact_buttons) * 50, width=180, height=40)
+        # 将选中联系人的函数self.select_contact()和联系人按钮绑定在一起
+        btn.bind('<Button-1>', lambda e, c='new': self.select_contact(c))
+        self.contact_buttons.append(btn)
+        # 用同一ID，保证每次登录时，上一次登录的记录还在，比如聊天记录和聊天对象
+        self.chat_history[btn['text']]=[ ]
+        with open(f'{self.username}_chatHistory.json','w') as f:
+            json.dump(self.chat_history,f,indent=4)
+        # 需要改进的地方，在这里设定是没有好友添加的功能，只有点击了new Chat按钮即可与新联系人开启新聊天窗口的模式，后续会写一下好友添加与审核的步骤
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
