@@ -332,7 +332,7 @@ class ChatApp:
         add_contacts = tk.Label(self.contacts_frame)
         add_contacts['text'] = 'New Chat'
         add_contacts['bg'] = 'aqua'
-        add_contacts['fg'] = 'white'
+        add_contacts['fg'] = 'black'
         add_contacts.place(x=30, y=540, width=140, height=40)
         add_contacts.bind('<Button-1>', self.addContacts)
 
@@ -409,7 +409,7 @@ class ChatApp:
         self.chat_area.yview(tk.END)
 
         # 清空输入框
-        self.message_entry.delete(0, tk.END)
+        self.message_entry.deletes(0, tk.END)
 
         # 将聊天记录存储到chatHistory.json文件中
         with open(f"{self.username}_chatHistory.json", 'w') as f:
@@ -473,13 +473,13 @@ class ChatApp:
         btn['anchor'] = 'w'
         btn.place(x=10, y=50 + len(self.contact_buttons) * 50, width=180, height=40)
         # 将选中联系人的函数self.select_contact()和联系人按钮绑定在一起
-        btn.bind('<Button-1>', lambda e, c='new': self.select_contact(c))
+        btn.bind('<Button-1>', lambda e, c='chat'+str(len(self.contact_buttons)+1): self.select_contact(c))
         self.contact_buttons.append(btn)
         # 用同一ID，保证每次登录时，上一次登录的记录还在，比如聊天记录和聊天对象
         self.chat_history[btn['text']]=[ ]
         with open(f'{self.username}_chatHistory.json','w') as f:
             json.dump(self.chat_history,f,indent=4)
-        # 需要改进的地方，在这里设定是没有好友添加的功能，只有点击了new Chat按钮即可与新联系人开启新聊天窗口的模式，后续会写一下好友添加与审核的步骤
+        # 需要改进的地方，在这里设定是没有好友添加的功能，只有点击了new Chat按钮即可与新联系人开启新聊天窗口的模式，后续会补上添加好友时审核的步骤
 
 
 
