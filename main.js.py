@@ -216,6 +216,8 @@ class ChatApp:
         self.root.title('KakaoTalk Clone')
         self.root.configure(bg='#F5F5F5')
         self.username=username
+        # 添加联系人加载方式
+        self.contacts=self.loadContacts()
 
         # 联系人列表框架
         self.contacts_frame = tk.Frame(root, bg='#F5F5F5')
@@ -235,6 +237,13 @@ class ChatApp:
             with open(f"{username}_chatHistory.json", 'r') as file:
                 self.chat_history=json.load(file)
         except FileNotFoundError:
+            # 初始化聊天记录，使用从文件加载的实际联系人
+            initial_chat_history={}
+            # 在这里不能用硬编码，需要使用self.contacts
+            for contact in self.contacts:
+                initial_chat_history[contact]=[]
+            # 将initial_chat_history赋值给
+            self.chat_history=initial_chat_history
             # 若不是第一次登录，则聊天记录会存在，则直接打开已有文件，并继续向里存储数据
             # with open('chatHistory.json','w') as file:
             with open(f"{username}_chatHistory.json", 'w') as file:
@@ -250,6 +259,7 @@ class ChatApp:
         #     'makit':["赵六", "钱七", "孙八", "周九", "吴十"]
         # }
         contacts=list(self.chat_history.keys())
+        # contacts=self.contacts
         # testContacts=["张三", "李四", "王五", "赵六", "钱七"]
         # makitContacts=["赵六", "钱七", "孙八", "周九", "吴十"]
         # 初始化每个联系人按钮
@@ -326,15 +336,21 @@ class ChatApp:
         self.load_chat_history()
 
         # 设置初始选中状态，默认选择contacts列表中的第一个
-        self.select_contact(contacts[0])
+        # self.select_contact(contacts[0])
 
-        # 添加联系人的+
+        # 设置初始选中状态
+        if contacts:
+            self.select_contact(contacts[0])
+        else:
+            self.chatTitle['text'] = '暂无联系人，请添加联系人开始聊天'
+
+        # 添加联系人的New Chat按钮
         add_contacts = tk.Label(self.contacts_frame)
         add_contacts['text'] = 'New Chat'
         add_contacts['bg'] = 'aqua'
         add_contacts['fg'] = 'black'
         add_contacts.place(x=30, y=540, width=140, height=40)
-        add_contacts.bind('<Button-1>', self.addContacts)
+        add_contacts.bind('<Button-1>', self.addContactDialog)
 
     # 加载聊天记录
     def load_chat_history(self):
@@ -409,7 +425,7 @@ class ChatApp:
         self.chat_area.yview(tk.END)
 
         # 清空输入框
-        self.message_entry.deletes(0, tk.END)
+        self.message_entry.delete(0, tk.END)
 
         # 将聊天记录存储到chatHistory.json文件中
         with open(f"{self.username}_chatHistory.json", 'w') as f:
@@ -455,31 +471,150 @@ class ChatApp:
             json.dump(self.chat_history,f,indent=4)
 
     # 点击加号，添加新的联系人
-    def addContacts(self,event=None):
-        # 若该联系人已是好友，则提示他已经是你的好友了，请你们开始聊天吧
-        # if newContact in self.contacts:
-        #     self.show_message('他已经是你的好友了，请你们开始聊天吧')
-        # # 新联系人不能是自己
-        # if newContact==self.username:
-        #     self.show_message('新的联系人不可以是本人')
-        # # 直接添加？
-        # self.contacts.append(newContact)
-
-        # 设置联系人框的样式
-        btn = tk.Label(self.contacts_frame)
-        btn['text'] = 'chat'+str(len(self.contact_buttons)+1)
-        btn['bg'] = 'white'
-        btn['fg'] = 'black'
-        btn['anchor'] = 'w'
-        btn.place(x=10, y=50 + len(self.contact_buttons) * 50, width=180, height=40)
-        # 将选中联系人的函数self.select_contact()和联系人按钮绑定在一起
-        btn.bind('<Button-1>', lambda e, c='chat'+str(len(self.contact_buttons)+1): self.select_contact(c))
-        self.contact_buttons.append(btn)
-        # 用同一ID，保证每次登录时，上一次登录的记录还在，比如聊天记录和聊天对象
-        self.chat_history[btn['text']]=[ ]
-        with open(f'{self.username}_chatHistory.json','w') as f:
-            json.dump(self.chat_history,f,indent=4)
+    # def addContacts(self,event=None):
+    #     # 设置联系人框的样式
+    #     btn = tk.Label(self.contacts_frame)
+    #     btn['text'] = 'chat'+str(len(self.contact_buttons)+1)
+    #     btn['bg'] = 'white'
+    #     btn['fg'] = 'black'
+    #     btn['anchor'] = 'w'
+    #     btn.place(x=10, y=50 + len(self.contact_buttons) * 50, width=180, height=40)
+    #     # 将选中联系人的函数self.select_contact()和联系人按钮绑定在一起
+    #     btn.bind('<Button-1>', lambda e, c='chat'+str(len(self.contact_buttons)+1): self.select_contact(c))
+    #     self.contact_buttons.append(btn)
+    #     # 用同一ID，保证每次登录时，上一次登录的记录还在，比如聊天记录和聊天对象
+    #     self.chat_history[btn['text']]=[ ]
+    #     with open(f'{self.username}_chatHistory.json','w') as f:
+    #         json.dump(self.chat_history,f,indent=4)
         # 需要改进的地方，在这里设定是没有好友添加的功能，只有点击了new Chat按钮即可与新联系人开启新聊天窗口的模式，后续会补上添加好友时审核的步骤
+
+    def addContactDialog(self,event=None):
+        dialog=tk.Toplevel(self.root)
+        dialog.title('add contact')
+        dialog.geometry('300x150')
+        dialog.configure(bg='white')
+
+        tk.Label(dialog, text="请输入联系人用户名:", bg='white').pack(pady=10)
+
+        contact_entry=tk.Entry(dialog,font=('Arial',10))
+        contact_entry.pack(pady=5, padx=20, fill='x')
+
+        def confirm_add():
+            new_contact = contact_entry.get().strip()
+            if self.addContact(new_contact):
+                dialog.destroy()
+
+        confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
+        confirm_btn.pack(pady=10)
+
+        def confirm_add():
+            new_contact = contact_entry.get().strip()
+            if self.addNewContact(new_contact):  # 调用实际的添加逻辑
+                dialog.destroy()
+
+        confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
+        confirm_btn.pack(pady=10)
+
+    def addContact(self,event=None):
+        self.addContactDialog()
+
+    def addContactDialog(self,event=None):
+        dialog = tk.Toplevel(self.root)
+        dialog.title('add contact')
+        dialog.geometry('300x150')
+        dialog.configure(bg='white')
+
+        tk.Label(dialog, text="请输入联系人用户名:", bg='white').pack(pady=10)
+
+        contact_entry = tk.Entry(dialog, font=('Arial', 10))
+        contact_entry.pack(pady=5, padx=20, fill='x')
+
+        def confirm_add():
+            new_contact = contact_entry.get().strip()
+            if self.addNewContact(new_contact):  # 调用实际的添加逻辑
+                dialog.destroy()
+
+        confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
+        confirm_btn.pack(pady=10)
+
+    def addNewContact(self,new_contact):
+        # 检查是否已添加
+        if new_contact in self.contacts:
+            self.show_message('该联系人已存在')
+            return -1
+
+        # 检查是否为自己
+        if new_contact==self.username:
+            self.show_message('不能添加自己为联系人')
+            return -1
+
+        # 添加联系人
+        self.contacts.append(new_contact)
+        # 在聊天记录中也添加这个联系人的空记录
+        if new_contact not in self.chat_history:
+            self.chat_history[new_contact] = []
+
+        # 保存联系人并更新联系人界面
+        self.saveContacts()
+        self.updateContactList()
+
+        self.show_message(f"成功添加联系人：{new_contact}")
+        return True
+
+    # 显示提示信息
+    def show_message(self,message):
+        print(f"提示：{message}")
+
+    def saveContacts(self,event=None):
+        contactsFile='contacts_database.json'
+
+        try:
+            with open(contactsFile,'r',encoding='utf-8') as f:
+                allContacts=json.load(f)
+        except FileNotFoundError:
+            allContacts={}
+
+        # 更新当前用户的联系人
+        allContacts[self.username]=self.contacts
+
+        # 保存回文件
+        with open(contactsFile, 'w', encoding='utf-8') as f:
+            json.dump(allContacts, f, indent=4, ensure_ascii=False)
+
+    # 从文件中获取联系人列表
+    def loadContacts(self,event=None):
+        contactsFile="contacts_database.json"
+        # 打开后将文件中的数据赋值给变量all_contacts
+        try:
+            with open(contactsFile, 'r', encoding='utf-8') as f:
+                all_contacts = json.load(f)
+                return all_contacts.get(self.username, [])
+        except FileNotFoundError:
+            # 如果文件不存在，使用默认联系人
+            default_contacts = {
+                'test': ["张三", "李四", "王五", "赵六", "钱七"],
+                'makit': ["赵六", "钱七", "孙八", "周九", "吴十"]
+            }
+            #
+            return default_contacts.get(self.username, [])
+
+    # 更新联系人列表和界面
+    def updateContactList(self,event=None):
+        # 清除现有联系人按钮
+        for btn in self.contact_buttons:
+            btn.destroy()
+        self.contact_buttons=[]
+
+        # 重新创建联系人按钮
+        for i, contact in enumerate(self.contacts):
+            btn = tk.Label(self.contacts_frame)
+            btn['text'] = contact
+            btn['bg'] = 'white'
+            btn['fg'] = 'black'
+            btn['anchor'] = 'w'
+            btn.place(x=10, y=50 + i * 50, width=180, height=40)
+            btn.bind('<Button-1>', lambda e, c=contact: self.select_contact(c))
+            self.contact_buttons.append(btn)
 
 
 
