@@ -216,8 +216,11 @@ class ChatApp:
         self.root.title('KakaoTalk Clone')
         self.root.configure(bg='#F5F5F5')
         self.username=username
+
         # 添加联系人加载方式
         self.contacts=self.loadContacts()
+        # 加载聊天记录
+        self.load_chatHistory()
 
         # 联系人列表框架
         self.contacts_frame = tk.Frame(root, bg='#F5F5F5')
@@ -229,6 +232,9 @@ class ChatApp:
         search_box['bg'] = 'white'
         search_box['fg'] = 'gray'
         search_box.place(x=10, y=10, width=170, height=30)
+
+        # 加工chat_history的key值作为联系人列表
+        contacts=list(self.chat_history.keys())
 
         # 存储聊天记录
         try:
@@ -258,7 +264,7 @@ class ChatApp:
         #     'test':["张三", "李四", "王五", "赵六", "钱七"],
         #     'makit':["赵六", "钱七", "孙八", "周九", "吴十"]
         # }
-        contacts=list(self.chat_history.keys())
+        # contacts=list(self.chat_history.keys())
         # contacts=self.contacts
         # testContacts=["张三", "李四", "王五", "赵六", "钱七"]
         # makitContacts=["赵六", "钱七", "孙八", "周九", "吴十"]
@@ -332,37 +338,39 @@ class ChatApp:
         # self.chat_history = {}
 
         # 加载聊天记录
-        self.chat_history_file = f"{username}_chatHistory.json"
-        self.load_chat_history()
+        self.chat_history = f"{username}_chatHistory.json"
+        self.load_chatHistory()
 
         # 设置初始选中状态，默认选择contacts列表中的第一个
         # self.select_contact(contacts[0])
 
         # 设置初始选中状态
-        if contacts:
+        if self.contacts:
             self.select_contact(contacts[0])
-        else:
-            self.chatTitle['text'] = '暂无联系人，请添加联系人开始聊天'
 
         # 添加联系人的New Chat按钮
-        add_contacts = tk.Label(self.contacts_frame)
-        add_contacts['text'] = 'New Chat'
-        add_contacts['bg'] = 'aqua'
-        add_contacts['fg'] = 'black'
-        add_contacts.place(x=30, y=540, width=140, height=40)
-        add_contacts.bind('<Button-1>', self.addContactDialog)
+        newChat_btn = tk.Label(self.contacts_frame)
+        newChat_btn['text'] = 'New Chat'
+        newChat_btn['bg'] = 'aqua'
+        newChat_btn['fg'] = 'black'
+        newChat_btn.place(x=30, y=540, width=140, height=40)
+        newChat_btn.bind('<Button-1>', self.addContactDialog)
 
     # 加载聊天记录
-    def load_chat_history(self):
+    def load_chatHistory(self):
         try:
-            with open(self.chat_history_file, 'r') as file:
+            with open(f"{self.username}_chatHistory.json", 'r') as file:
                 self.chat_history = json.load(file)
         except FileNotFoundError:
+            # 若文件不存在，用联系人列表初始化聊天记录
             self.chat_history = {}
+            for contact in self.contacts:
+                self.chat_history[contact]=[]
+            self.save_chat_history()
 
     # 保存聊天记录
     def save_chat_history(self):
-        with open(self.chat_history_file, 'w') as f:
+        with open(f"{self.username}_chatHistory_file.json", 'w') as f:
             json.dump(self.chat_history, f, indent=4)
 
     # 点击选择聊天对象
@@ -471,7 +479,7 @@ class ChatApp:
             json.dump(self.chat_history,f,indent=4)
 
     # 点击加号，添加新的联系人
-    # def addContacts(self,event=None):
+    # def addContact(self,event=None):
     #     # 设置联系人框的样式
     #     btn = tk.Label(self.contacts_frame)
     #     btn['text'] = 'chat'+str(len(self.contact_buttons)+1)
@@ -488,71 +496,57 @@ class ChatApp:
     #         json.dump(self.chat_history,f,indent=4)
         # 需要改进的地方，在这里设定是没有好友添加的功能，只有点击了new Chat按钮即可与新联系人开启新聊天窗口的模式，后续会补上添加好友时审核的步骤
 
+    # 添加联系人对话框
     def addContactDialog(self,event=None):
         dialog=tk.Toplevel(self.root)
         dialog.title('add contact')
         dialog.geometry('300x150')
         dialog.configure(bg='white')
 
+        # 关键代码：设置为模态对话框
+        dialog.grab_set()  # 阻止其他窗口的输入
+        dialog.transient(self.root)  # 设置为主窗口的子窗口
+        dialog.focus_set()  # 获得焦点
+
         tk.Label(dialog, text="请输入联系人用户名:", bg='white').pack(pady=10)
 
+        # 添加联系人的输入框样式
         contact_entry=tk.Entry(dialog,font=('Arial',10))
         contact_entry.pack(pady=5, padx=20, fill='x')
+        # 输入框获得焦点
+        contact_entry.focus_set()
 
+        # 确认添加
         def confirm_add():
+            # 从contact_entry中获取要新添加的联系人，赋值给变量new_contact
             new_contact = contact_entry.get().strip()
+            # 调用addContact添加新联系人后，
             if self.addContact(new_contact):
+                # 销毁对话框
                 dialog.destroy()
+            else:
+                contact_entry.focus_set()
 
+        # 确认添加按钮样式
         confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
         confirm_btn.pack(pady=10)
 
-        def confirm_add():
-            new_contact = contact_entry.get().strip()
-            if self.addNewContact(new_contact):  # 调用实际的添加逻辑
-                dialog.destroy()
-
-        confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
-        confirm_btn.pack(pady=10)
-
-    def addContact(self,event=None):
+    def addContact(self,new_contact):
         self.addContactDialog()
-
-    def addContactDialog(self,event=None):
-        dialog = tk.Toplevel(self.root)
-        dialog.title('add contact')
-        dialog.geometry('300x150')
-        dialog.configure(bg='white')
-
-        tk.Label(dialog, text="请输入联系人用户名:", bg='white').pack(pady=10)
-
-        contact_entry = tk.Entry(dialog, font=('Arial', 10))
-        contact_entry.pack(pady=5, padx=20, fill='x')
-
-        def confirm_add():
-            new_contact = contact_entry.get().strip()
-            if self.addNewContact(new_contact):  # 调用实际的添加逻辑
-                dialog.destroy()
-
-        confirm_btn = tk.Button(dialog, text="添加", command=confirm_add, bg='#FFE100')
-        confirm_btn.pack(pady=10)
-
-    def addNewContact(self,new_contact):
         # 检查是否已添加
         if new_contact in self.contacts:
             self.show_message('该联系人已存在')
-            return -1
+            return False
 
         # 检查是否为自己
-        if new_contact==self.username:
+        if new_contact == self.username:
             self.show_message('不能添加自己为联系人')
-            return -1
+            return False
 
         # 添加联系人
         self.contacts.append(new_contact)
         # 在聊天记录中也添加这个联系人的空记录
-        if new_contact not in self.chat_history:
-            self.chat_history[new_contact] = []
+        self.chat_history[new_contact] = []
 
         # 保存联系人并更新联系人界面
         self.saveContacts()
@@ -583,6 +577,7 @@ class ChatApp:
 
     # 从文件中获取联系人列表
     def loadContacts(self,event=None):
+        # 从contacts_database.json中获取用户各自的联系人列表
         contactsFile="contacts_database.json"
         # 打开后将文件中的数据赋值给变量all_contacts
         try:
@@ -592,10 +587,9 @@ class ChatApp:
         except FileNotFoundError:
             # 如果文件不存在，使用默认联系人
             default_contacts = {
-                'test': ["张三", "李四", "王五", "赵六", "钱七"],
-                'makit': ["赵六", "钱七", "孙八", "周九", "吴十"]
+                'test': ["friend1", "friend2", "friend3", "friend4"],
+                'makit': ["friend5", "friend6", "friend7"]
             }
-            #
             return default_contacts.get(self.username, [])
 
     # 更新联系人列表和界面
@@ -615,8 +609,6 @@ class ChatApp:
             btn.place(x=10, y=50 + i * 50, width=180, height=40)
             btn.bind('<Button-1>', lambda e, c=contact: self.select_contact(c))
             self.contact_buttons.append(btn)
-
-
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -1,10 +1,18 @@
 {
     "makit": [
-        "赵六",
-        "钱七",
-        "孙八",
-        "周九",
-        "吴十",
-        "user1"
+        "friend5",
+        "friend6",
+        "friend7",
+        "admin1",
+        "test"
+    ],
+    "test": [
+        "friend1",
+        "friend2",
+        "friend3",
+        "friend4",
+        "user1",
+        "user2",
+        "user3"
     ]
 }
